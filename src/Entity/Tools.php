@@ -2,50 +2,92 @@
 
 namespace App\Entity;
 
+use ApiPlatform\Metadata\ApiFilter;
+use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\GetCollection;
+use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
+use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
+use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
 use App\Repository\ToolsRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: ToolsRepository::class)]
+#[ApiResource(
+    normalizationContext: ['groups' => ['tools:read']],
+    denormalizationContext: ['groups' => ['tools:write']],
+    paginationEnabled: false,
+    operations: [
+        new Get(),
+        new GetCollection()
+    ]
+)]
+#[ApiFilter(SearchFilter::class, properties: [
+    'ownerDepartment' => 'exact',
+    'status' => 'exact',
+    'id' => 'exact',
+])]
+#[ApiFilter(RangeFilter::class, properties: [
+    'monthly_cost',
+])]
+#[ApiFilter(OrderFilter::class, properties: [
+    'monthly_cost', 'name', 'created_at'
+], arguments: ['orderParameterName' => 'order'])]
+
 class Tools
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(['tools:read', 'tools:write'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 100)]
+    #[Groups(['tools:read', 'tools:write'])]
     private ?string $name = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Groups(['tools:read', 'tools:write'])]
     private ?string $description = null;
 
     #[ORM\Column(length: 100, nullable: true)]
+    #[Groups(['tools:read', 'tools:write'])]
     private ?string $vendor = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(['tools:read', 'tools:write'])]
     private ?string $websiteUrl = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
+    #[Groups(['tools:read', 'tools:write'])]
     private ?Categories $category = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
+    #[Groups(['tools:read', 'tools:write'])]
     private ?string $monthlyCost = null;
 
     #[ORM\Column]
+    #[Groups(['tools:read', 'tools:write'])]
     private ?int $activeUsersCount = null;
 
     #[ORM\Column(length: 255)]
+    #[Assert\Choice(['Engineering','Sales','Marketing','HR','Finance','Operations','Design'])]
+    #[Groups(['tools:read'])]
     private ?string $ownerDepartment = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    private ?string $status = null;
+    #[Assert\Choice(['active','deprecated','trial'])]
+    #[Groups(['tools:read'])]
+    private ?string $status = 'active';
 
     #[ORM\Column]
+    #[Groups(['tools:read'])]
     private ?\DateTimeImmutable $createdAt = null;
 
     #[ORM\Column]
+    #[Groups(['tools:read'])]
     private ?\DateTimeImmutable $updatedAt = null;
 
     public function getId(): ?int
