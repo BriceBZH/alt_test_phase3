@@ -108,35 +108,6 @@ class Tools
         return $this->usageLogs;
     }
 
-    #[Groups(['read:tools:collection'])]
-    public function getInfos(): array
-    {
-        // $now = new \DateTimeImmutable();
-        // $date = $now->modify('-30 days');
-
-        // $logs = $this->usageLogs;
-
-        // $totalSessions = count($logs);
-        // $totalMinutes = 0;
-        // foreach ($logs as $log) {
-        //     $totalMinutes += $log->getUsageMinutes();
-        // }
-        // $avgMinutes = $totalSessions > 0 ? round($totalMinutes / $totalSessions) : 0;
-
-        return [
-            'last_30_days' => [
-                'total_sessions' => $totalSessions,
-                'avg_session_minutes' => $avgMinutes
-            ]
-            "total": 20,
-  "filtered": 15,
-  "filters_applied": {
-    "department": "Engineering", 
-    "status": "active"
-  }
-        ];
-    }
-
     #[Groups(['read:item'])]
     public function getUsageMetrics(): array
     {
