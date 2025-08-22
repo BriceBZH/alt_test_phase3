@@ -9,18 +9,21 @@ use ApiPlatform\Metadata\ApiResource;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
 use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
+use Symfony\Component\Serializer\Annotation\Groups;
 use App\Repository\ToolsRepository;
 use Doctrine\DBAL\Types\Types;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: ToolsRepository::class)]
 #[ApiResource(
-    normalizationContext: ['groups' => ['tools:read']],
-    denormalizationContext: ['groups' => ['tools:write']],
-    paginationEnabled: false,
+    normalizationContext: ['groups' => ['read:tools', 'read:categories']],
+    // denormalizationContext: ['groups' => ['tools:write']],
+    // paginationEnabled: false,
     operations: [
-        new Get(),
-        new GetCollection()
+        // new GetCollection(normalizationContext: ['groups' => ['read:collection']]),
+        new Get(normalizationContext: ['groups' => ['read:item']]),
     ]
 )]
 #[ApiFilter(SearchFilter::class, properties: [
@@ -28,11 +31,11 @@ use Doctrine\ORM\Mapping as ORM;
     'status' => 'exact',
     'id' => 'exact',
 ])]
-#[ApiFilter(RangeFilter::class, properties: [
-    'monthly_cost',
-])]
+// #[ApiFilter(RangeFilter::class, properties: [
+//     'monthly_cost',
+// ])]
 #[ApiFilter(OrderFilter::class, properties: [
-    'monthly_cost', 'name', 'created_at'
+    'name', 'id', 'description'
 ], arguments: ['orderParameterName' => 'order'])]
 
 class Tools
@@ -40,55 +43,95 @@ class Tools
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(['tools:read', 'tools:write'])]
+    #[Groups(['read:tools', 'read:item'])]
     private ?int $id = null;
 
     #[ORM\Column(length: 100)]
-    #[Groups(['tools:read', 'tools:write'])]
+    #[Groups(['read:tools', 'read:item'])]
     private ?string $name = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups(['tools:read', 'tools:write'])]
+    #[Groups(['read:tools', 'read:item'])]
     private ?string $description = null;
 
     #[ORM\Column(length: 100, nullable: true)]
-    #[Groups(['tools:read', 'tools:write'])]
+    #[Groups(['read:tools', 'read:item'])]
     private ?string $vendor = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    #[Groups(['tools:read', 'tools:write'])]
+    #[Groups(['read:tools', 'read:item'])]
     private ?string $websiteUrl = null;
 
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(nullable: false)]
-    #[Groups(['tools:read', 'tools:write'])]
+    #[Groups(['read:tools', 'read:item'])]
     private ?Categories $category = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
-    #[Groups(['tools:read', 'tools:write'])]
+    #[Groups(['read:tools', 'read:item'])]
     private ?string $monthlyCost = null;
 
     #[ORM\Column]
-    #[Groups(['tools:read', 'tools:write'])]
+    #[Groups(['read:tools', 'read:item'])]
     private ?int $activeUsersCount = null;
 
     #[ORM\Column(length: 255)]
-    #[Assert\Choice(['Engineering','Sales','Marketing','HR','Finance','Operations','Design'])]
-    #[Groups(['tools:read'])]
+    // #[Assert\Choice(['Engineering','Sales','Marketing','HR','Finance','Operations','Design'])]
+    #[Groups(['read:tools', 'read:item'])]
     private ?string $ownerDepartment = null;
 
     #[ORM\Column(length: 255, nullable: true)]
-    #[Assert\Choice(['active','deprecated','trial'])]
-    #[Groups(['tools:read'])]
+    // #[Assert\Choice(['active','deprecated','trial'])]
+    #[Groups(['read:tools', 'read:item'])]
     private ?string $status = 'active';
 
     #[ORM\Column]
-    #[Groups(['tools:read'])]
+    #[Groups(['read:tools', 'read:item'])]
     private ?\DateTimeImmutable $createdAt = null;
 
     #[ORM\Column]
-    #[Groups(['tools:read'])]
+    #[Groups(['read:tools', 'read:item'])]
     private ?\DateTimeImmutable $updatedAt = null;
+
+    #[ORM\OneToMany(mappedBy: 'tool', targetEntity: UsageLogs::class)]
+    private Collection $usageLogs;
+
+    public function __construct()
+    {
+        $this->usageLogs = new ArrayCollection();
+    }
+
+    public function getUsageLogs(): Collection
+    {
+        return $this->usageLogs;
+    }
+
+    #[Groups(['read:item'])]
+    public function getUsageMetrics(): array
+    {
+        $now = new \DateTimeImmutable();
+        $date = $now->modify('-30 days');
+
+        // $logs = $this->usageLogs->filter(function(UsageLogs $log) {
+        //     return $log->getSessionDate() >= new \DateTimeImmutable('-30 days');
+        // });
+
+        $logs = $this->usageLogs;
+
+        $totalSessions = count($logs);
+        $totalMinutes = 0;
+        foreach ($logs as $log) {
+            $totalMinutes += $log->getUsageMinutes();
+        }
+        $avgMinutes = $totalSessions > 0 ? round($totalMinutes / $totalSessions) : 0;
+
+        return [
+            'last_30_days' => [
+                'total_sessions' => $totalSessions,
+                'avg_session_minutes' => $avgMinutes
+            ]
+        ];
+    }
 
     public function getId(): ?int
     {

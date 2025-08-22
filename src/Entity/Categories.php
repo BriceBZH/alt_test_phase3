@@ -3,10 +3,13 @@
 namespace App\Entity;
 
 use App\Repository\CategoriesRepository;
+use ApiPlatform\Metadata\ApiResource;
 use Doctrine\DBAL\Types\Types;
+use Symfony\Component\Serializer\Annotation\Groups;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: CategoriesRepository::class)]
+#[ApiResource()]
 class Categories
 {
     #[ORM\Id]
@@ -15,6 +18,7 @@ class Categories
     private ?int $id = null;
 
     #[ORM\Column(length: 50)]
+    #[Groups(['read:categories', 'read:item'])]
     private ?string $name = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
