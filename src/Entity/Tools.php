@@ -4,8 +4,10 @@ namespace App\Entity;
 
 use ApiPlatform\Metadata\ApiFilter;
 use ApiPlatform\Metadata\Get;
+use ApiPlatform\Metadata\Patch;
 use ApiPlatform\Metadata\GetCollection;
 use ApiPlatform\Metadata\ApiResource;
+use ApiPlatform\Metadata\ApiProperty;
 use ApiPlatform\Doctrine\Orm\Filter\SearchFilter;
 use ApiPlatform\Doctrine\Orm\Filter\RangeFilter;
 use ApiPlatform\Doctrine\Orm\Filter\OrderFilter;
@@ -14,29 +16,31 @@ use App\Repository\ToolsRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use App\Enum\ToolStatus;
 use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: ToolsRepository::class)]
 #[ApiResource(
     normalizationContext: ['groups' => ['read:tools', 'read:categories']],
-    // denormalizationContext: ['groups' => ['tools:write']],
-    // paginationEnabled: false,
+    paginationItemsPerPage : 1,
     operations: [
-        // new GetCollection(normalizationContext: ['groups' => ['read:collection']]),
-        new Get(normalizationContext: ['groups' => ['read:item']]),
+        new GetCollection(normalizationContext: ['groups' => ['read:tools', 'read:categories']]),
+        new Get(normalizationContext: ['groups' => ['read:item', 'read:categories']]),
+        new Patch(denormalizationContext: ['groups' => ['put:item']]),
     ]
 )]
 #[ApiFilter(SearchFilter::class, properties: [
     'ownerDepartment' => 'exact',
     'status' => 'exact',
     'id' => 'exact',
+    'category.name' => 'exact',
 ])]
 // #[ApiFilter(RangeFilter::class, properties: [
 //     'monthly_cost',
 // ])]
-#[ApiFilter(OrderFilter::class, properties: [
-    'name', 'id', 'description'
-], arguments: ['orderParameterName' => 'order'])]
+// #[ApiFilter(OrderFilter::class, properties: [
+//     'name', 'id', 'description'
+// ], arguments: ['orderParameterName' => 'order'])]
 
 class Tools
 {
@@ -51,7 +55,7 @@ class Tools
     private ?string $name = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
-    #[Groups(['read:tools', 'read:item'])]
+    #[Groups(['read:tools', 'read:item', 'put:item'])]
     private ?string $description = null;
 
     #[ORM\Column(length: 100, nullable: true)]
@@ -68,7 +72,7 @@ class Tools
     private ?Categories $category = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
-    #[Groups(['read:tools', 'read:item'])]
+    #[Groups(['read:tools', 'read:item', 'put:item'])]
     private ?string $monthlyCost = null;
 
     #[ORM\Column]
@@ -76,14 +80,12 @@ class Tools
     private ?int $activeUsersCount = null;
 
     #[ORM\Column(length: 255)]
-    // #[Assert\Choice(['Engineering','Sales','Marketing','HR','Finance','Operations','Design'])]
     #[Groups(['read:tools', 'read:item'])]
     private ?string $ownerDepartment = null;
 
-    #[ORM\Column(length: 255, nullable: true)]
-    // #[Assert\Choice(['active','deprecated','trial'])]
-    #[Groups(['read:tools', 'read:item'])]
-    private ?string $status = 'active';
+    #[ORM\Column(enumType: ToolStatus::class, nullable: true)]
+    #[Groups(['read:tools', 'read:item', 'put:item'])]
+    private ?ToolStatus $status = ToolStatus::Active;
 
     #[ORM\Column]
     #[Groups(['read:tools', 'read:item'])]
@@ -106,15 +108,40 @@ class Tools
         return $this->usageLogs;
     }
 
+    #[Groups(['read:tools:collection'])]
+    public function getInfos(): array
+    {
+        // $now = new \DateTimeImmutable();
+        // $date = $now->modify('-30 days');
+
+        // $logs = $this->usageLogs;
+
+        // $totalSessions = count($logs);
+        // $totalMinutes = 0;
+        // foreach ($logs as $log) {
+        //     $totalMinutes += $log->getUsageMinutes();
+        // }
+        // $avgMinutes = $totalSessions > 0 ? round($totalMinutes / $totalSessions) : 0;
+
+        return [
+            'last_30_days' => [
+                'total_sessions' => $totalSessions,
+                'avg_session_minutes' => $avgMinutes
+            ]
+            "total": 20,
+  "filtered": 15,
+  "filters_applied": {
+    "department": "Engineering", 
+    "status": "active"
+  }
+        ];
+    }
+
     #[Groups(['read:item'])]
     public function getUsageMetrics(): array
     {
         $now = new \DateTimeImmutable();
         $date = $now->modify('-30 days');
-
-        // $logs = $this->usageLogs->filter(function(UsageLogs $log) {
-        //     return $log->getSessionDate() >= new \DateTimeImmutable('-30 days');
-        // });
 
         $logs = $this->usageLogs;
 
@@ -234,15 +261,14 @@ class Tools
         return $this;
     }
 
-    public function getStatus(): ?string
+    public function getStatus(): ?ToolStatus
     {
         return $this->status;
     }
 
-    public function setStatus(?string $status): static
+    public function setStatus(?ToolStatus $status): self
     {
         $this->status = $status;
-
         return $this;
     }
 
