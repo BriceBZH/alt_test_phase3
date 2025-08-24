@@ -25,7 +25,8 @@
 [php bin/phpunit] - Tests unitaires + intégration
 
 ## Architecture
-    ### Jutification 
+
+### Justification
 
  - Symfony est un framework robuste et modulaire, très adapté aux API REST.
 
@@ -33,7 +34,7 @@
 
  - Cela permet d’itérer rapidement tout en gardant une base propre et extensible.
 
-    ### Structure
+### Structure
 
  - Les entités (src/Entity) regroupent toute la logique métier (définition des ressources exposées par l’API).
 
